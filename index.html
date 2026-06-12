@@ -165,10 +165,8 @@ td { padding: 10px 14px; }
   padding: 7px 0; border-bottom: 1px solid #21262d;
 }
 .panel-task:last-child { border-bottom: none; }
-.panel-task-check { margin-top: 2px; cursor: pointer; accent-color: #58a6ff; flex-shrink: 0; }
 .panel-task-body { flex: 1; min-width: 0; }
 .panel-task-name { font-size: 12px; color: #e6edf3; line-height: 1.4; }
-.panel-task-name.done { text-decoration: line-through; color: #484f58; }
 .panel-task-meta { display: flex; gap: 6px; margin-top: 3px; align-items: center; flex-wrap: wrap; }
 .panel-deadline { font-size: 10px; padding: 1px 6px; border-radius: 8px; background: #21262d; color: #6e7681; }
 .panel-deadline.overdue { background: #3d0d0d; color: #f87171; }
@@ -176,30 +174,7 @@ td { padding: 10px 14px; }
 .panel-task-link { color: #484f58; font-size: 11px; text-decoration: none; flex-shrink: 0; margin-top: 2px; }
 .panel-task-link:hover { color: #58a6ff; }
 .panel-empty { font-size: 12px; color: #484f58; margin-bottom: 14px; }
-.panel-expand-btn {
-  background: none; border: 1px solid #30363d; color: #6e7681; font-size: 11px;
-  cursor: pointer; padding: 5px 10px; border-radius: 6px; margin-bottom: 8px;
-  display: block; width: 100%; text-align: left;
-}
-.panel-expand-btn:hover { border-color: #484f58; color: #c9d1d9; }
-.panel-form {
-  background: #0d1117; border: 1px solid #21262d; border-radius: 6px;
-  padding: 10px 12px; margin-bottom: 14px; display: none;
-}
-.panel-form.visible { display: block; }
-.panel-form-label { font-size: 10px; color: #6e7681; margin-bottom: 3px; display: block; }
-.panel-form input, .panel-form textarea {
-  width: 100%; background: #161b22; border: 1px solid #30363d; color: #c9d1d9;
-  border-radius: 4px; padding: 5px 8px; font-size: 12px; font-family: inherit;
-  margin-bottom: 8px;
-}
-.panel-form input:focus, .panel-form textarea:focus { outline: none; border-color: #58a6ff; }
-.panel-form textarea { resize: vertical; min-height: 65px; }
-.panel-submit-btn {
-  background: #238636; border: none; color: #fff; font-size: 12px; font-weight: 600;
-  padding: 5px 14px; border-radius: 6px; cursor: pointer;
-}
-.panel-submit-btn:hover { background: #2ea043; }
+.panel-assignee { font-size: 10px; color: #6e7681; }
 .panel-footer { padding: 12px 18px; border-top: 1px solid #21262d; flex-shrink: 0; }
 .panel-knowify-link {
   display: block; font-size: 12px; color: #58a6ff; text-decoration: none;
@@ -208,13 +183,6 @@ td { padding: 10px 14px; }
 }
 .panel-knowify-link:hover { background: #0c2d6b44; }
 
-/* Queued toast */
-.queued-toast {
-  position: fixed; bottom: 20px; right: 20px; background: #1a4731; color: #4ade80;
-  border: 1px solid #238636; font-size: 12px; padding: 8px 16px; border-radius: 8px;
-  z-index: 400; opacity: 0; transition: opacity 0.3s; pointer-events: none;
-}
-.queued-toast.show { opacity: 1; }
 </style>
 </head>
 <body>
@@ -273,28 +241,12 @@ td { padding: 10px 14px; }
     <div class="panel-section-title">Tasks</div>
     <ul class="panel-tasks" id="panel-tasks"></ul>
 
-    <button class="panel-expand-btn" id="task-expand-btn" onclick="toggleForm('task-form', this)">+ Add task &#x25BE;</button>
-    <div class="panel-form" id="task-form">
-      <label class="panel-form-label">Description</label>
-      <input type="text" id="task-desc" placeholder="Task description">
-      <label class="panel-form-label">Due date</label>
-      <input type="date" id="task-due">
-      <button class="panel-submit-btn" onclick="submitTask()">Save task</button>
-    </div>
-
-    <button class="panel-expand-btn" id="comment-expand-btn" onclick="toggleForm('comment-form', this)">+ Add comment &#x25BE;</button>
-    <div class="panel-form" id="comment-form">
-      <label class="panel-form-label">Comment</label>
-      <textarea id="comment-text" placeholder="Add a comment to this phase..."></textarea>
-      <button class="panel-submit-btn" onclick="submitComment()">Post comment</button>
-    </div>
   </div>
   <div class="panel-footer">
     <a id="panel-knowify-link" class="panel-knowify-link" href="#" target="_blank">&#x2197; Open phase in Knowify</a>
   </div>
 </div>
 
-<div id="queued-toast" class="queued-toast">Queued &mdash; update in ~30s</div>
 
 <script>
 const TODAY = new Date('June 12, 2026');
@@ -540,32 +492,6 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 
 render();
 
-// ── Write backend ──────────────────────────────────────────────────────────
-const GITHUB_TOKEN = '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';
-const GH_WRITE_URL = 'https://api.github.com/repos/m5x2/knowify-projects/actions/workflows/write.yml/dispatches';
-
-function callWrite(action, payload) {
-  showToast();
-  fetch(GH_WRITE_URL, {
-    method: 'POST',
-    headers: {
-      'Accept': 'application/vnd.github+json',
-      'Authorization': `Bearer ${GITHUB_TOKEN}`,
-      'X-GitHub-Api-Version': '2022-11-28',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ ref: 'main', inputs: { action, payload: JSON.stringify(payload) } }),
-  }).then(r => {
-    if (!r.ok) r.text().then(t => console.error('Write dispatch failed:', r.status, t));
-  }).catch(err => console.error('Write dispatch error:', err));
-}
-
-function showToast() {
-  const el = document.getElementById('queued-toast');
-  el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), 3500);
-}
-
 // ── Panel ──────────────────────────────────────────────────────────────────
 let _panelProj = null;
 let _panelPhase = null;
@@ -600,30 +526,26 @@ function openPanel(proj, phase) {
   if (!phase.tasks.length) {
     ul.innerHTML = '<li class="panel-empty">No open tasks</li>';
   } else {
-    ul.innerHTML = phase.tasks.map((t, i) => {
+    ul.innerHTML = phase.tasks.map(t => {
       const dl = t.deadline ? fmtDeadline(t.deadline) : null;
       const deadlineHtml = dl
         ? `<span class="panel-deadline ${dl.cls}">${dl.label}${dl.note ? ' \u00b7 ' + dl.note : ''}</span>`
         : '';
+      const assigneesHtml = t.assignees.length
+        ? `<span class="panel-assignee">&#128100; ${t.assignees.map(a => a.split(' ')[0]).join(', ')}</span>`
+        : '';
       const taskUrl = t.id
         ? `https://secure.knowify.com/#/tasks/manage?view=all-tasks&action-name=task-manager&action-target=${t.id}`
         : planUrl;
-      return `<li class="panel-task" id="panel-task-${i}">
-        <input type="checkbox" class="panel-task-check" onchange="completeTask(${i}, this)" title="Mark done">
+      return `<li class="panel-task">
         <div class="panel-task-body">
-          <div class="panel-task-name" id="panel-task-name-${i}">${t.description}</div>
-          <div class="panel-task-meta">${deadlineHtml}</div>
+          <div class="panel-task-name">${t.description}</div>
+          <div class="panel-task-meta">${deadlineHtml}${assigneesHtml}</div>
         </div>
         <a class="panel-task-link" href="${taskUrl}" target="_blank" title="Open in Knowify">&#x2197;</a>
       </li>`;
     }).join('');
   }
-
-  // Reset forms
-  ['task-form', 'comment-form'].forEach(id => document.getElementById(id).classList.remove('visible'));
-  document.getElementById('task-desc').value = '';
-  document.getElementById('task-due').value = '';
-  document.getElementById('comment-text').value = '';
 
   document.getElementById('panel').classList.add('open');
 }
@@ -632,53 +554,6 @@ function closePanel() {
   document.getElementById('panel').classList.remove('open');
   _panelProj = null;
   _panelPhase = null;
-}
-
-function toggleForm(formId, btn) {
-  const form = document.getElementById(formId);
-  form.classList.toggle('visible');
-}
-
-function completeTask(taskIdx, checkbox) {
-  if (!_panelPhase) return;
-  const task = _panelPhase.tasks[taskIdx];
-  if (!task || !task.id) { checkbox.checked = false; return; }
-
-  // Optimistic UI
-  const nameEl = document.getElementById(`panel-task-name-${taskIdx}`);
-  if (nameEl) nameEl.classList.add('done');
-  checkbox.disabled = true;
-
-  callWrite('complete_task', { task_id: task.id });
-}
-
-function submitTask() {
-  if (!_panelProj || !_panelPhase) return;
-  const desc = document.getElementById('task-desc').value.trim();
-  if (!desc) return;
-  const due = document.getElementById('task-due').value;
-  callWrite('add_task', {
-    project_id: _panelProj.id,
-    phase_id: _panelPhase.id,
-    description: desc,
-    due_date: due || null,
-  });
-  document.getElementById('task-desc').value = '';
-  document.getElementById('task-due').value = '';
-  document.getElementById('task-form').classList.remove('visible');
-}
-
-function submitComment() {
-  if (!_panelProj || !_panelPhase) return;
-  const text = document.getElementById('comment-text').value.trim();
-  if (!text) return;
-  callWrite('add_comment', {
-    project_id: _panelProj.id,
-    phase_id: _panelPhase.id,
-    text,
-  });
-  document.getElementById('comment-text').value = '';
-  document.getElementById('comment-form').classList.remove('visible');
 }
 
 // Close panel on Escape
